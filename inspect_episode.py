@@ -48,4 +48,4 @@ for i, step in enumerate(ep.steps):
 
 writer.release()
 arena.close()
-print(f"\nSaved {out}  ({len(ep.steps)} frames @ {fps} fps)")
+print(f"\nSaved {out}  ({len(ep.steps)} frames @ {TARGET_FPS} fps)")
