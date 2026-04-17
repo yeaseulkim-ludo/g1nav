@@ -12,3 +12,6 @@ wheels/
 # Generated renders
 videos/
 images/
+
+# Collected dataset
+dataset/
