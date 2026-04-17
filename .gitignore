@@ -10,5 +10,4 @@ wheels/
 .venv
 
 # Generated renders
-*.png
 videos/
