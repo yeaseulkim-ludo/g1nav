@@ -110,12 +110,13 @@ def build_arena_xml(objects: List[ObjectConfig] | None = None) -> str:
                       rgba="0.7 0.7 0.7 1",
                       contype="1", conaffinity="1")
 
-    # Colored objects
+    # Colored objects as mocap bodies so positions can be randomized each episode
     for obj in objects:
         size_str = " ".join(str(s) for s in obj.size)
         rgba_str = " ".join(str(v) for v in obj.rgba)
         pos_str  = " ".join(str(v) for v in obj.pos)
-        body = ET.SubElement(worldbody, "body", name=obj.name, pos=pos_str)
+        body = ET.SubElement(worldbody, "body", name=obj.name,
+                             mocap="true", pos=pos_str)
         ET.SubElement(body, "geom",
                       name=obj.name + "_geom",
                       type=obj.shape, size=size_str, rgba=rgba_str,
@@ -188,6 +189,12 @@ class G1NavArena:
             self.model, mujoco.mjtObj.mjOBJ_CAMERA, "third_person"
         )
 
+        # Mocap indices for each object (for position randomization)
+        self._mocap_ids = []
+        for obj in self._objects:
+            body_id = mujoco.mj_name2id(self.model, mujoco.mjtObj.mjOBJ_BODY, obj.name)
+            self._mocap_ids.append(self.model.body_mocapid[body_id])
+
         self._renderer     = mujoco.Renderer(self.model, height=self.IMG_H,  width=self.IMG_W)
         self._tp_renderer  = mujoco.Renderer(self.model, height=self.TP_H,   width=self.TP_W)
         self._ego_renderer = mujoco.Renderer(self.model, height=self.EGO_H,  width=self.EGO_W)
@@ -195,12 +202,13 @@ class G1NavArena:
     # ── public API ────────────────────────────────────────────────────────────
 
     def reset(self, init_joint_angles: np.ndarray | None = None) -> dict:
-        """Reset simulation. Optionally set initial lower-body joint angles."""
+        """Reset simulation and randomize object positions."""
         mujoco.mj_resetData(self.model, self.data)
         if init_joint_angles is not None:
             assert init_joint_angles.shape == (15,)
             for i, idx in enumerate(self._qpos_idx):
                 self.data.qpos[idx] = init_joint_angles[i]
+        self._place_objects()
         mujoco.mj_forward(self.model, self.data)
         return self._get_obs()
 
@@ -251,6 +259,26 @@ class G1NavArena:
         os.unlink(self._tmpfile.name)
 
     # ── internals ─────────────────────────────────────────────────────────────
+
+    def _place_objects(self):
+        """Randomly place objects in the arena, ensuring minimum separation."""
+        placed_xy = []
+        robot_xy  = np.zeros(2)
+
+        for obj, mocap_id in zip(self._objects, self._mocap_ids):
+            for _ in range(200):
+                x = self._rng.uniform(-3.2, 3.2)
+                y = self._rng.uniform(-3.2, 3.2)
+                xy = np.array([x, y])
+
+                if np.linalg.norm(xy - robot_xy) < 1.2:
+                    continue
+                if any(np.linalg.norm(xy - p) < 0.8 for p in placed_xy):
+                    continue
+
+                placed_xy.append(xy)
+                self.data.mocap_pos[mocap_id] = [x, y, obj.pos[2]]
+                break
 
     def _get_obs(self) -> dict:
         return {
