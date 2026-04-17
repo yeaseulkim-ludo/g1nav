@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>G1Nav — Real-Time VLA for Humanoid Navigation</title>
+<style>
+  :root { --fg:#111;--muted:#6b6b6b;--light:#a8a179;--yellow:#FBD45B;--card:#F5F4EF;
+          --card-alt:#EEECE4;--border:#C0BDAD;--border-light:#E6E0CB;--shadow:#C0BDAD;
+          --red:#c0392b;--green:#1a7a3a;--blue:#1a4a8a; }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body { font-family:-apple-system,'Helvetica Neue',Helvetica,Arial,sans-serif;
+         background:#fff; color:var(--fg); max-width:816px; margin:0 auto;
+         padding:48px 24px 80px; line-height:1.7; font-size:14px; }
+  h1 { font-family:Georgia,'Times New Roman',serif; font-size:2rem; font-weight:400;
+       line-height:1.2; margin-bottom:8px; letter-spacing:-0.5px; }
+  h2 { font-family:Georgia,'Times New Roman',serif; font-size:1.25rem; font-weight:400;
+       margin:48px 0 16px; padding-bottom:8px; border-bottom:1px solid var(--border-light); }
+  h3 { font-family:Georgia,'Times New Roman',serif; font-size:1.05rem; font-weight:400;
+       margin:28px 0 10px; }
+  p { margin:8px 0; }
+  .sub { font-family:'SF Mono','Fira Mono',Consolas,monospace; font-size:0.78rem;
+         color:var(--light); margin-bottom:36px; }
+  code { font-family:'SF Mono','Fira Mono',Consolas,monospace; font-size:0.82em;
+         background:var(--card); padding:1px 5px; border-radius:2px;
+         border:1px solid var(--border-light); }
+  .box { border:1px solid var(--border); padding:28px 16px 14px; margin:12px 0;
+         font-family:'SF Mono','Fira Mono',Consolas,monospace; font-size:0.78rem;
+         line-height:1.6; position:relative; background:#fff; }
+  .tag { position:absolute; top:-1px; right:-1px; font-family:-apple-system,Helvetica,sans-serif;
+         font-size:0.58rem; font-weight:700; text-transform:uppercase;
+         letter-spacing:1px; padding:2px 8px; }
+  .card { background:var(--card); border:1px solid var(--border);
+          box-shadow:3px 3px 0px var(--shadow); padding:20px; margin:16px 0; }
+  .card pre { font-family:'SF Mono','Fira Mono',Consolas,monospace;
+              font-size:0.78rem; white-space:pre-wrap; line-height:1.5; }
+  table { width:100%; border-collapse:collapse; margin:16px 0; font-size:0.82rem; }
+  th { text-align:left; padding:8px 10px; border-bottom:2px solid var(--fg); font-weight:600; }
+  td { padding:8px 10px; border-bottom:1px solid var(--border-light); }
+  td:last-child, th:last-child { text-align:right; }
+  .divider { border:none; border-top:1px solid var(--border-light); margin:40px 0; }
+  .cap { font-family:'SF Mono',Consolas,monospace; font-size:0.7rem; color:var(--light);
+         text-align:center; margin:8px 0; }
+  .callout { background:var(--card); border:1px solid var(--border);
+             padding:14px 18px; margin:16px 0; font-size:0.85rem;
+             border-left:3px solid var(--yellow); }
+  ol, ul { margin:8px 0 8px 24px; }
+  li { margin:4px 0; }
+  .formula { font-family:'SF Mono','Fira Mono',Consolas,monospace; font-size:0.82rem;
+             background:var(--card); border:1px solid var(--border);
+             padding:16px 20px; margin:12px 0; line-height:1.8; overflow-x:auto; }
+  .lang-toggle { display:flex; gap:0; margin-bottom:32px; }
+  .lang-toggle button { font-family:'SF Mono','Fira Mono',Consolas,monospace;
+    font-size:0.78rem; font-weight:600; padding:6px 18px; border:1px solid var(--border);
+    cursor:pointer; background:#fff; color:var(--muted); transition:background 0.15s,color 0.15s; }
+  .lang-toggle button:first-child { border-radius:4px 0 0 4px; border-right:none; }
+  .lang-toggle button:last-child { border-radius:0 4px 4px 0; }
+  .lang-toggle button.active { background:var(--fg); color:#fff; border-color:var(--fg); }
+  .lang-content { display:none; }
+  .lang-content.active { display:block; }
+</style>
+</head>
+<body>
+
+<div class="lang-toggle">
+  <button id="btn-en" class="active" onclick="switchLang('en')">English</button>
+  <button id="btn-ko" onclick="switchLang('ko')">한국어</button>
+</div>
+
+<!-- ==================== ENGLISH ==================== -->
+<div id="content-en" class="lang-content active">
+
+<h1>G1Nav</h1>
+<p class="sub">Ludo Robotics &middot; Take-Home Exam &middot; 3 Hours &middot; Spring 2026</p>
+
+<p>A <b>Unitree G1</b> humanoid stands inside a small arena. A handful of brightly
+colored objects &mdash; a red ball, a yellow square, a blue cylinder, a green cone, &hellip; &mdash;
+are scattered on the floor. The scene is fully <b>static</b>: nothing moves except the robot.</p>
+
+<p>Given a free-form English instruction such as <code>"follow the red ball"</code> or
+<code>"go straight and turn right after passing the yellow square"</code>, the robot must
+navigate the scene using only its onboard <b>RGBD camera, other sensors, and their
+histories</b>, together with the instruction text. The instruction is fixed for the
+duration of an episode.</p>
+
+<div class="callout">
+<b>Train a small VLA that maps RGBD frames, sensor readings, their histories, and a
+text instruction &rarr; lower-body joint targets of the Unitree G1.</b><br>
+The policy must run in <b>real time</b> inside MuJoCo.
+</div>
+
+<h2>Constraints</h2>
+
+<ol>
+  <li><b>MuJoCo only.</b> No Isaac Sim, no Gazebo, no Bullet.</li>
+  <li><b>Real time.</b> The full perception &rarr; action loop must run in real time
+      on a single consumer GPU.</li>
+  <li><b>Direct joint targets.</b> The model output is a lower-body joint target vector,
+      not a velocity command or other high-level handle.</li>
+  <li><b>Pretrained parameters.</b> You may reuse any parameters that are part of the
+      <b>Isaac GR00T N1.6</b> checkpoint &mdash; vision encoder, language model, action
+      head, projectors, adapters, anything. No other pretrained checkpoints are allowed.</li>
+</ol>
+
+<h2>Deliverables</h2>
+
+<p>Submit a single zip <code>g1nav_&lt;your_name&gt;.zip</code> containing:</p>
+
+<table>
+<tr><th>Item</th><th style="text-align:right;">Notes</th></tr>
+<tr><td><code>report.pdf</code></td><td style="text-align:right;">Your approach in detail. See checklist below.</td></tr>
+<tr><td><code>dataset/</code></td><td style="text-align:right;">Your training data, or a manifest + script that regenerates it deterministically (seed included)</td></tr>
+<tr><td><code>checkpoint/</code></td><td style="text-align:right;">Final model weights</td></tr>
+<tr><td><code>code/</code></td><td style="text-align:right;">Training and inference code</td></tr>
+<tr><td><code>videos/</code></td><td style="text-align:right;"><b>At least three examples.</b> See below.</td></tr>
+<tr><td><code>README.md</code></td><td style="text-align:right;">Exact commands to reproduce, GPU/RAM requirements</td></tr>
+</table>
+
+<p>The report should cover, at minimum:</p>
+<ul>
+  <li><b>Data.</b> How you generated trajectories and instructions, and roughly how many.</li>
+  <li><b>Architecture.</b> Which GR00T parameters you reused and why; what you trained from scratch; what you froze.</li>
+  <li><b>Training.</b> Loss, optimizer, schedule, total compute, and one or two things that did <i>not</i> work.</li>
+  <li><b>Real-time strategy.</b> Where the wall-clock budget went and what you cut to make it real time.</li>
+  <li><b>Results.</b> Your own success numbers, plus the three failure modes you find most interesting.</li>
+</ul>
+
+<p>For <code>videos/</code>, submit <b>at least three examples</b> from scenes you tested.
+Each example pairs the robot's <b>egocentric RGBD camera view</b> with a <b>third-person
+camera view</b> of the G1 executing the instruction &mdash; side-by-side in one video,
+or two synchronised clips.</p>
+
+<hr class="divider">
+<p style="font-size:0.78rem;color:var(--light);text-align:center;">
+G1Nav &middot; Ludo Robotics &middot; Take-Home &middot; 3 Hours
+</p>
+</div>
+
+<!-- ==================== KOREAN ==================== -->
+<div id="content-ko" class="lang-content">
+
+<h1>G1Nav</h1>
+<p class="sub">Ludo Robotics &middot; 과제 전형 &middot; 3시간 &middot; Spring 2026</p>
+
+<p><b>유니트리 G1</b> 휴머노이드가 작은 아레나 안에 서 있습니다. 빨간 공, 노란 정육면체,
+파란 원기둥, 초록 콘 등 색이 선명한 물체 몇 개가 바닥에 흩어져 있습니다.
+장면은 완전히 <b>정적</b>입니다 &mdash; 로봇 외에는 아무것도 움직이지 않습니다.</p>
+
+<p><code>"follow the red ball"</code> 또는
+<code>"go straight and turn right after passing the yellow square"</code>와 같은
+자유로운 영문 지시문이 주어졌을 때, 로봇은 오직 온보드 <b>RGBD 카메라, 기타 센서,
+그리고 그것들의 히스토리</b>와 지시문 텍스트만으로 장면을 항행해야 합니다.
+지시문은 에피소드 동안 고정됩니다.</p>
+
+<div class="callout">
+<b>RGBD 프레임, 센서 값, 그것들의 히스토리, 그리고 지시문 텍스트를 입력으로 받아
+유니트리 G1의 하체 관절 목표를 출력하는 작은 VLA를 학습하세요.</b><br>
+정책은 MuJoCo 안에서 <b>실시간</b>으로 동작해야 합니다.
+</div>
+
+<h2>제약 조건</h2>
+
+<ol>
+  <li><b>MuJoCo만.</b> Isaac Sim, Gazebo, Bullet 모두 불가.</li>
+  <li><b>실시간.</b> perception &rarr; action 전체 루프는 단일 컨슈머 GPU에서
+      실시간으로 동작해야 합니다.</li>
+  <li><b>직접 관절 목표.</b> 모델 출력은 하체 관절 목표 벡터이며,
+      속도 명령이나 상위 레벨 핸들이 아닙니다.</li>
+  <li><b>사전학습 파라미터.</b> <b>Isaac GR00T N1.6</b> 체크포인트에 포함된 어떤
+      파라미터든 재사용할 수 있습니다 &mdash; 비전 인코더, 언어 모델, 액션 헤드,
+      프로젝터, 어댑터 등 무엇이든. 그 외의 사전학습 체크포인트는 사용할 수 없습니다.</li>
+</ol>
+
+<h2>제출물</h2>
+
+<p>다음을 담은 단일 zip <code>g1nav_&lt;본인_이름&gt;.zip</code>을 제출하세요:</p>
+
+<table>
+<tr><th>항목</th><th style="text-align:right;">비고</th></tr>
+<tr><td><code>report.pdf</code></td><td style="text-align:right;">접근 방식 상세 기술. 아래 체크리스트 참고.</td></tr>
+<tr><td><code>dataset/</code></td><td style="text-align:right;">학습 데이터, 또는 결정론적으로 재생성하는 매니페스트 + 스크립트(시드 포함)</td></tr>
+<tr><td><code>checkpoint/</code></td><td style="text-align:right;">최종 모델 가중치</td></tr>
+<tr><td><code>code/</code></td><td style="text-align:right;">학습 및 추론 코드</td></tr>
+<tr><td><code>videos/</code></td><td style="text-align:right;"><b>최소 세 개의 예시.</b> 아래 참고.</td></tr>
+<tr><td><code>README.md</code></td><td style="text-align:right;">재현을 위한 정확한 명령, GPU/RAM 요구 사항</td></tr>
+</table>
+
+<p>리포트는 최소 다음 항목을 다루어야 합니다:</p>
+<ul>
+  <li><b>데이터.</b> 트라젝터리와 지시문을 어떻게 생성했고, 대략 몇 개인지.</li>
+  <li><b>아키텍처.</b> 어떤 GR00T 파라미터를 재사용했고 왜 그 선택을 했는지;
+      무엇을 처음부터 학습했고; 무엇을 freeze 했는지.</li>
+  <li><b>학습.</b> 손실 함수, 옵티마이저, 스케줄, 총 컴퓨트, 그리고
+      <i>실패한</i> 시도 한두 가지.</li>
+  <li><b>실시간 전략.</b> 월클락 예산을 어디에 썼고, 실시간 달성을 위해 무엇을 잘랐는지.</li>
+  <li><b>결과.</b> 본인이 측정한 성공률, 그리고 가장 흥미로운 실패 모드 세 가지.</li>
+</ul>
+
+<p><code>videos/</code>에는 여러분이 테스트한 씬에서 <b>최소 세 개의 예시</b>를
+제출하세요. 각 예시는 로봇의 <b>에고센트릭 RGBD 카메라 뷰</b>와, 지시문을 수행하는
+G1의 <b>3인칭 카메라 뷰</b>를 함께 보여줘야 합니다 &mdash; 하나의 영상에 side-by-side로
+넣거나, 동기화된 두 개의 클립으로 제출하세요.</p>
+
+<hr class="divider">
+<p style="font-size:0.78rem;color:var(--light);text-align:center;">
+G1Nav &middot; Ludo Robotics &middot; 과제 전형 &middot; 3시간
+</p>
+</div>
+
+<script>
+function switchLang(lang) {
+  document.getElementById('content-en').classList.toggle('active', lang === 'en');
+  document.getElementById('content-ko').classList.toggle('active', lang === 'ko');
+  document.getElementById('btn-en').classList.toggle('active', lang === 'en');
+  document.getElementById('btn-ko').classList.toggle('active', lang === 'ko');
+  document.documentElement.lang = lang;
+}
+</script>
+</body>
+</html>
