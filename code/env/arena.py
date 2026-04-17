@@ -24,16 +24,17 @@ import mujoco
 import numpy as np
 
 
-# G1 model from GR00T-WholeBodyControl submodule (proper binary STLs via git-lfs)
+# Use the WBC's sim2mujoco XML — it has the correct physics parameters (low joint
+# damping) that match the WBC policy's training environment.
 G1_MODEL_DIR = os.path.abspath(
     os.path.join(
         os.path.dirname(__file__),
         "../../..",
         "Isaac-GR00T/external_dependencies/GR00T-WholeBodyControl"
-        "/gr00t_wbc/control/robot_model/model_data/g1",
+        "/gr00t_wbc/sim2mujoco/resources/robots/g1",
     )
 )
-G1_SCENE_XML = os.path.join(G1_MODEL_DIR, "scene_29dof.xml")
+G1_SCENE_XML = os.path.join(G1_MODEL_DIR, "g1_gear_wbc.xml")
 
 # Lower-body actuated joint names (15 joints total)
 LOWER_BODY_JOINTS = [
@@ -84,19 +85,12 @@ def build_arena_xml(objects: List[ObjectConfig] | None = None) -> str:
     tree = ET.parse(G1_SCENE_XML)
     root = tree.getroot()
 
-    # Make the compiler point to the G1 model directory for meshes
+    # Make mesh/texture paths absolute so the temp file can live anywhere
     compiler = root.find("compiler")
     if compiler is None:
         compiler = ET.SubElement(root, "compiler")
     compiler.set("meshdir", os.path.join(G1_MODEL_DIR, "meshes"))
     compiler.set("texturedir", G1_MODEL_DIR)
-
-    # Fix the include path to be absolute
-    include = root.find("include")
-    if include is not None:
-        inc_file = include.get("file", "")
-        if not os.path.isabs(inc_file):
-            include.set("file", os.path.join(G1_MODEL_DIR, inc_file))
 
     worldbody = root.find("worldbody")
     if worldbody is None:
@@ -126,6 +120,15 @@ def build_arena_xml(objects: List[ObjectConfig] | None = None) -> str:
                       name=obj.name + "_geom",
                       type=obj.shape, size=size_str, rgba=rgba_str,
                       contype="1", conaffinity="1")
+
+    # Egocentric camera on torso_link (head position)
+    torso = root.find(".//body[@name='torso_link']")
+    if torso is not None:
+        ET.SubElement(torso, "camera",
+                      name="head_camera",
+                      pos="0.1 0 0.3",
+                      xyaxes="1 0 0 0 0 1",
+                      fovy="90")
 
     # Third-person camera
     ET.SubElement(worldbody, "camera",
@@ -187,18 +190,21 @@ class G1NavArena:
 
     # ── public API ────────────────────────────────────────────────────────────
 
-    def reset(self) -> dict:
+    def reset(self, init_joint_angles: np.ndarray | None = None) -> dict:
+        """Reset simulation. Optionally set initial lower-body joint angles."""
         mujoco.mj_resetData(self.model, self.data)
+        if init_joint_angles is not None:
+            assert init_joint_angles.shape == (15,)
+            for i, idx in enumerate(self._qpos_idx):
+                self.data.qpos[idx] = init_joint_angles[i]
         mujoco.mj_forward(self.model, self.data)
         return self._get_obs()
 
-    def step(self, joint_targets: np.ndarray) -> Tuple[dict, bool]:
-        """Advance one control step (10 ms) using the given joint targets."""
-        assert joint_targets.shape == (15,), f"Expected 15 joint targets, got {joint_targets.shape}"
-        for i, idx in enumerate(self._qpos_idx):
-            self.data.qpos[idx] = joint_targets[i]
-        for _ in range(5):   # 5 × 2 ms = 10 ms per control step
-            mujoco.mj_step(self.model, self.data)
+    def step_torque(self, torques: np.ndarray) -> Tuple[dict, bool]:
+        """Advance one sim step (5 ms) applying raw torques to data.ctrl[0:15]."""
+        assert torques.shape == (15,)
+        self.data.ctrl[:15] = torques
+        mujoco.mj_step(self.model, self.data)
         return self._get_obs(), False
 
     def render_ego(self) -> np.ndarray:
