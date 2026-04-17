@@ -1,15 +1,15 @@
-"""Visualize a collected episode: saves ego-view GIF + prints stats."""
+"""Visualize a collected episode: saves ego-view MP4 + prints stats."""
 import os
 import pickle
 import sys
 sys.path.insert(0, "/home/ludo-us/work/g1nav")
 
+import cv2
 import numpy as np
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw
 
 EPISODES_DIR = "dataset/episodes"
 
-# Pick episode to inspect (default: first one)
 ep_idx = int(sys.argv[1]) if len(sys.argv) > 1 else 0
 path = os.path.join(EPISODES_DIR, f"ep_{ep_idx:04d}.pkl")
 
@@ -21,29 +21,21 @@ print(f"Target obj  : {ep.target_obj}")
 print(f"Steps       : {len(ep.steps)}")
 print(f"Success     : {ep.success}")
 print(f"Action range: [{ep.steps[0].action.min():.3f}, {ep.steps[0].action.max():.3f}]")
-print(f"Joint names : 15 lower-body joints")
-
-# Sample every 10th frame to keep GIF small
-frames = ep.steps[::10]
-
-def add_text(img_array, text):
-    img = Image.fromarray(img_array)
-    draw = ImageDraw.Draw(img)
-    draw.text((8, 8), text, fill=(255, 255, 255))
-    return np.array(img)
-
-gif_frames = []
-for i, step in enumerate(frames):
-    label = f"{ep.instruction}  |  step {i*10}/{len(ep.steps)}"
-    gif_frames.append(Image.fromarray(add_text(step.rgb, label)))
 
 os.makedirs("images", exist_ok=True)
-out = f"images/episode_{ep_idx:04d}.gif"
-gif_frames[0].save(
-    out,
-    save_all=True,
-    append_images=gif_frames[1:],
-    duration=80,   # ms per frame
-    loop=0,
-)
-print(f"\nSaved {out}  ({len(gif_frames)} frames)")
+out = f"images/episode_{ep_idx:04d}.mp4"
+
+h, w = ep.steps[0].rgb.shape[:2]
+fps = 25
+fourcc = cv2.VideoWriter_fourcc(*"mp4v")
+writer = cv2.VideoWriter(out, fourcc, fps, (w, h))
+
+for i, step in enumerate(ep.steps):
+    frame = step.rgb.copy()
+    label = f"{ep.instruction}  |  step {i}/{len(ep.steps)}"
+    cv2.putText(frame, label, (8, 28), cv2.FONT_HERSHEY_SIMPLEX,
+                0.6, (255, 255, 255), 2, cv2.LINE_AA)
+    writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+writer.release()
+print(f"\nSaved {out}  ({len(ep.steps)} frames @ {fps} fps)")
