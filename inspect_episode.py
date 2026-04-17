@@ -25,13 +25,13 @@ print(f"Action range: [{ep.steps[0].action.min():.3f}, {ep.steps[0].action.max()
 os.makedirs("images", exist_ok=True)
 out = f"images/episode_{ep_idx:04d}.mp4"
 
-h, w = ep.steps[0].rgb.shape[:2]
+h, w = ep.steps[0].rgb_tp.shape[:2]
 fps = 25
 fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 writer = cv2.VideoWriter(out, fourcc, fps, (w, h))
 
 for i, step in enumerate(ep.steps):
-    frame = step.rgb.copy()
+    frame = step.rgb_tp.copy()
     label = f"{ep.instruction}  |  step {i}/{len(ep.steps)}"
     cv2.putText(frame, label, (8, 28), cv2.FONT_HERSHEY_SIMPLEX,
                 0.6, (255, 255, 255), 2, cv2.LINE_AA)

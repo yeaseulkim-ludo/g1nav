@@ -127,14 +127,14 @@ def build_arena_xml(objects: List[ObjectConfig] | None = None) -> str:
         ET.SubElement(torso, "camera",
                       name="head_camera",
                       pos="0.1 0 0.3",
-                      xyaxes="1 0 0 0 0 1",
+                      xyaxes="0 -1 0 0 0 1",
                       fovy="90")
 
-    # Third-person camera
+    # Third-person camera — behind and elevated, looking forward-down toward objects
     ET.SubElement(worldbody, "camera",
                   name="third_person",
-                  pos="0 -4 2.5",
-                  xyaxes="1 0 0 0 0.5 1",
+                  pos="-2 0 3",
+                  xyaxes="0 -1 0 0.53 0 0.85",
                   fovy="60")
 
     return ET.tostring(root, encoding="unicode")
@@ -153,6 +153,7 @@ class G1NavArena:
     """
 
     IMG_W, IMG_H = 640, 480
+    TP_W,  TP_H  = 320, 240
 
     def __init__(self, objects: List[ObjectConfig] | None = None, seed: int = 0):
         self._rng     = np.random.default_rng(seed)
@@ -186,7 +187,8 @@ class G1NavArena:
             self.model, mujoco.mjtObj.mjOBJ_CAMERA, "third_person"
         )
 
-        self._renderer = mujoco.Renderer(self.model, height=self.IMG_H, width=self.IMG_W)
+        self._renderer    = mujoco.Renderer(self.model, height=self.IMG_H, width=self.IMG_W)
+        self._tp_renderer = mujoco.Renderer(self.model, height=self.TP_H,  width=self.TP_W)
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -221,9 +223,9 @@ class G1NavArena:
         return depth
 
     def render_third_person(self) -> np.ndarray:
-        """Third-person RGB image (H, W, 3) uint8."""
-        self._renderer.update_scene(self.data, camera=self._tp_cam_id)
-        return self._renderer.render().copy()
+        """Third-person RGB image (320x240) uint8 — for visualization."""
+        self._tp_renderer.update_scene(self.data, camera=self._tp_cam_id)
+        return self._tp_renderer.render().copy()
 
     def get_joint_angles(self) -> np.ndarray:
         """Current lower-body joint angles (15,) radians."""
@@ -242,14 +244,13 @@ class G1NavArena:
 
     def close(self):
         self._renderer.close()
+        self._tp_renderer.close()
         os.unlink(self._tmpfile.name)
 
     # ── internals ─────────────────────────────────────────────────────────────
 
     def _get_obs(self) -> dict:
         return {
-            "rgb":        self.render_ego(),
-            "depth":      self.render_depth(),
             "joints":     self.get_joint_angles(),
             "joint_vels": self.get_joint_velocities(),
         }
