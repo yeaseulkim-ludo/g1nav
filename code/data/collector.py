@@ -37,6 +37,7 @@ MAX_WZ        = 1.0       # rad/s cap
 @dataclass
 class Step:
     qpos:       np.ndarray   # full robot state (nq,) for replay/rendering
+    rgb_ego:    np.ndarray   # (224, 224, 3) uint8  ego view for GR00T training
     joints:     np.ndarray   # (15,) float32
     joint_vels: np.ndarray   # (15,) float32
     action:     np.ndarray   # (15,) float32  ← WBC joint targets
@@ -107,6 +108,7 @@ def collect_episode(
 
         episode.steps.append(Step(
             qpos=arena.data.qpos.copy(),
+            rgb_ego=arena.render_ego(),
             joints=obs["joints"].astype(np.float32),
             joint_vels=obs["joint_vels"].astype(np.float32),
             action=target_q,

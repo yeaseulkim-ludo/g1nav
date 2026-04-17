@@ -26,12 +26,18 @@ os.makedirs("images", exist_ok=True)
 out = f"images/episode_{ep_idx:04d}.mp4"
 
 arena = G1NavArena()
+# Sim runs at 200 Hz; subsample to 25 fps → keep every 8th frame (real-time speed)
+SIM_HZ = 200
+TARGET_FPS = 25
+STRIDE = SIM_HZ // TARGET_FPS  # 8
+
 h, w = arena.TP_H, arena.TP_W
-fps = 25
 fourcc = cv2.VideoWriter_fourcc(*"mp4v")
-writer = cv2.VideoWriter(out, fourcc, fps, (w, h))
+writer = cv2.VideoWriter(out, fourcc, TARGET_FPS, (w, h))
 
 for i, step in enumerate(ep.steps):
+    if i % STRIDE != 0:
+        continue
     arena.data.qpos[:] = step.qpos
     mujoco.mj_forward(arena.model, arena.data)
     frame = arena.render_third_person()

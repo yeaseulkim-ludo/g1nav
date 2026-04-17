@@ -154,6 +154,7 @@ class G1NavArena:
 
     IMG_W, IMG_H = 640, 480
     TP_W,  TP_H  = 320, 240
+    EGO_W, EGO_H = 224, 224
 
     def __init__(self, objects: List[ObjectConfig] | None = None, seed: int = 0):
         self._rng     = np.random.default_rng(seed)
@@ -187,8 +188,9 @@ class G1NavArena:
             self.model, mujoco.mjtObj.mjOBJ_CAMERA, "third_person"
         )
 
-        self._renderer    = mujoco.Renderer(self.model, height=self.IMG_H, width=self.IMG_W)
-        self._tp_renderer = mujoco.Renderer(self.model, height=self.TP_H,  width=self.TP_W)
+        self._renderer     = mujoco.Renderer(self.model, height=self.IMG_H,  width=self.IMG_W)
+        self._tp_renderer  = mujoco.Renderer(self.model, height=self.TP_H,   width=self.TP_W)
+        self._ego_renderer = mujoco.Renderer(self.model, height=self.EGO_H,  width=self.EGO_W)
 
     # ── public API ────────────────────────────────────────────────────────────
 
@@ -210,9 +212,9 @@ class G1NavArena:
         return self._get_obs(), False
 
     def render_ego(self) -> np.ndarray:
-        """Egocentric RGB image (H, W, 3) uint8."""
-        self._renderer.update_scene(self.data, camera=self._ego_cam_id)
-        return self._renderer.render().copy()
+        """Egocentric RGB image (224x224) uint8 — for training."""
+        self._ego_renderer.update_scene(self.data, camera=self._ego_cam_id)
+        return self._ego_renderer.render().copy()
 
     def render_depth(self) -> np.ndarray:
         """Egocentric depth map (H, W) float32 in metres."""
@@ -245,6 +247,7 @@ class G1NavArena:
     def close(self):
         self._renderer.close()
         self._tp_renderer.close()
+        self._ego_renderer.close()
         os.unlink(self._tmpfile.name)
 
     # ── internals ─────────────────────────────────────────────────────────────
