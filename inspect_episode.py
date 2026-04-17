@@ -26,6 +26,13 @@ os.makedirs("images", exist_ok=True)
 out = f"images/episode_{ep_idx:04d}.mp4"
 
 arena = G1NavArena()
+
+# Restore object positions from the episode so they render in the right place
+for obj_name, pos in ep.object_positions.items():
+    body_id  = mujoco.mj_name2id(arena.model, mujoco.mjtObj.mjOBJ_BODY, obj_name)
+    mocap_id = arena.model.body_mocapid[body_id]
+    arena.data.mocap_pos[mocap_id] = pos
+
 # Sim runs at 200 Hz; subsample to 25 fps → keep every 8th frame (real-time speed)
 SIM_HZ = 200
 TARGET_FPS = 25

@@ -45,10 +45,11 @@ class Step:
 
 @dataclass
 class Episode:
-    instruction: str
-    target_obj:  str
-    steps:       List[Step] = field(default_factory=list)
-    success:     bool = False
+    instruction:      str
+    target_obj:       str
+    object_positions: dict        # {name: (x, y, z)} — for video replay
+    steps:            List[Step] = field(default_factory=list)
+    success:          bool = False
 
 
 def _heading_error(mj_data, target_pos: np.ndarray) -> float:
@@ -81,8 +82,10 @@ def collect_episode(
     obs = arena.reset(init_joint_angles=wbc.default_angles)
     wbc.reset()
 
-    target_pos = np.array(arena.object_positions()[target_obj])
-    episode = Episode(instruction=instruction, target_obj=target_obj)
+    obj_positions = arena.object_positions()
+    target_pos = np.array(obj_positions[target_obj])
+    episode = Episode(instruction=instruction, target_obj=target_obj,
+                      object_positions=obj_positions)
 
     # Stabilization warmup — zero command, don't record
     zero_cmd = np.zeros(3, dtype=np.float32)
