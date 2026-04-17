@@ -46,6 +46,10 @@ Always set `MUJOCO_GL=egl` for headless rendering (no display attached):
 MUJOCO_GL=egl /home/ludo-us/work/Isaac-GR00T/.venv/bin/python <script.py>
 ```
 
+## Generated Images
+
+Save all rendered images to `images/`. Before committing, delete any outdated images from that folder.
+
 ## GPU
 
 - RTX 5080 Laptop GPU, 16 GB VRAM
