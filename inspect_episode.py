@@ -1,12 +1,13 @@
-"""Visualize a collected episode: saves ego-view MP4 + prints stats."""
+"""Visualize a collected episode: replays qpos and saves third-person MP4."""
 import os
 import pickle
 import sys
 sys.path.insert(0, "/home/ludo-us/work/g1nav")
 
 import cv2
-import numpy as np
-from PIL import Image, ImageDraw
+import mujoco
+
+from code.env.arena import G1NavArena
 
 EPISODES_DIR = "dataset/episodes"
 
@@ -20,22 +21,25 @@ print(f"Instruction : {ep.instruction}")
 print(f"Target obj  : {ep.target_obj}")
 print(f"Steps       : {len(ep.steps)}")
 print(f"Success     : {ep.success}")
-print(f"Action range: [{ep.steps[0].action.min():.3f}, {ep.steps[0].action.max():.3f}]")
 
 os.makedirs("images", exist_ok=True)
 out = f"images/episode_{ep_idx:04d}.mp4"
 
-h, w = ep.steps[0].rgb_tp.shape[:2]
+arena = G1NavArena()
+h, w = arena.TP_H, arena.TP_W
 fps = 25
 fourcc = cv2.VideoWriter_fourcc(*"mp4v")
 writer = cv2.VideoWriter(out, fourcc, fps, (w, h))
 
 for i, step in enumerate(ep.steps):
-    frame = step.rgb_tp.copy()
+    arena.data.qpos[:] = step.qpos
+    mujoco.mj_forward(arena.model, arena.data)
+    frame = arena.render_third_person()
     label = f"{ep.instruction}  |  step {i}/{len(ep.steps)}"
-    cv2.putText(frame, label, (8, 28), cv2.FONT_HERSHEY_SIMPLEX,
-                0.6, (255, 255, 255), 2, cv2.LINE_AA)
+    cv2.putText(frame, label, (6, 20), cv2.FONT_HERSHEY_SIMPLEX,
+                0.4, (255, 255, 255), 1, cv2.LINE_AA)
     writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
 
 writer.release()
+arena.close()
 print(f"\nSaved {out}  ({len(ep.steps)} frames @ {fps} fps)")

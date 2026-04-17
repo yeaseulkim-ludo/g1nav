@@ -36,7 +36,7 @@ MAX_WZ        = 1.0       # rad/s cap
 
 @dataclass
 class Step:
-    rgb_tp:     np.ndarray   # (240, 320, 3) uint8  third-person view for visualization
+    qpos:       np.ndarray   # full robot state (nq,) for replay/rendering
     joints:     np.ndarray   # (15,) float32
     joint_vels: np.ndarray   # (15,) float32
     action:     np.ndarray   # (15,) float32  ← WBC joint targets
@@ -106,7 +106,7 @@ def collect_episode(
         arena.step_torque(torques)
 
         episode.steps.append(Step(
-            rgb_tp=arena.render_third_person(),
+            qpos=arena.data.qpos.copy(),
             joints=obs["joints"].astype(np.float32),
             joint_vels=obs["joint_vels"].astype(np.float32),
             action=target_q,
